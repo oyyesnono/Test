@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini App: Скачать картинку с кругом</title>
+    <style>
+        body {
+            background-color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #preview {
+            width: 300px;
+            height: 300px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #999;
+            background-color: #f9f9f9;
+        }
+        #canvas {
+            border-radius: 50%;
+            display: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        input[type="file"] {
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mini App: Добавьте файл и скачайте картинку</h1>
+    <div id="preview">Белый круг (предпросмотр)</div>
+    <canvas id="canvas" width="300" height="300"></canvas>
+    <br>
+    <input type="file" id="fileInput" accept="image/*">
+    <br>
+    <button id="downloadBtn" onclick="downloadFile()" disabled>Скачать готовую картинку</button>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // Функция для рисования круга на canvas
+        function drawCircle() {
+            // Белый фон
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Белый круг (но поскольку фон белый, он не виден, но для демонстрации нарисуем границу)
+            ctx.beginPath();
+            ctx.arc(150, 150, 140, 0, 2 * Math.PI);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Добавляем загруженное изображение в центр круга
+            if (fileInput.files && fileInput.files[0]) {
+                const img = new Image();
+                img.onload = function() {
+                    // Масштабируем изображение к размеру круга
+                    const imgSize = 200;
+                    const offset = (300 - imgSize) / 2;
+                    ctx.drawImage(img, offset, offset, imgSize, imgSize);
+                    downloadBtn.disabled = false;
+                };
+                img.src = URL.createObjectURL(fileInput.files[0]);
+            }
+        }
+
+        // Обработчик выбора файла
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                drawCircle();
+                preview.style.display = 'none';
+                canvas.style.display = 'block';
+            }
+        });
+
+        // Функция downloadFile(params[, callback])
+        // params: объект с filename (строка, опционально) и mimeType (строка, по умолчанию 'image/png')
+        // callback: функция, вызываемая после скачивания (опционально)
+        function downloadFile(params, callback) {
+            // Проверяем, поддерживается ли toBlob
+            if (!canvas.toBlob) {
+                // Fallback на toDataURL для старых браузеров
+                const dataUrl = canvas.toDataURL(params.mimeType || 'image/png');
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = params.filename || 'generated-image.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                if (callback && typeof callback === 'function') {
+                    // Создаем blob из dataUrl для callback
+                    fetch(dataUrl)
+                        .then(res => res.blob())
+                        .then(blob => callback(blob));
+                }
+                return;
+            }
+
+            // Создаем blob из canvas
+            canvas.toBlob(function(blob) {
+                if (!blob) {
+                    console.error('Ошибка создания blob');
+                    return;
+                }
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = params.filename || 'generated-image.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Вызываем callback, если передан
+                if (callback && typeof callback === 'function') {
+                    callback(blob);
+                }
+            }, params.mimeType || 'image/png');
+        }
+    </script>
+</body>
+</html>
